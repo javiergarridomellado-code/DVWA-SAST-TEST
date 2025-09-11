@@ -27,7 +27,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: |
-            java
+            Java
             javascript
 
       - name: Autobuild
