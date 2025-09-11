@@ -1,0 +1,51 @@
+name: "SAST Scan (CodeQL + ShellCheck)"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # -------------------------------
+  # CodeQL para Java y JavaScript
+  # -------------------------------
+  codeql-analyze:
+    name: CodeQL (Java + JavaScript)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write   # subir findings
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: |
+            java
+            javascript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # -------------------------------
+  # ShellCheck para scripts Bash
+  # -------------------------------
+  shellcheck:
+    name: ShellCheck (Bash scripts)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@v2
