@@ -21,8 +21,8 @@ jobs:
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
-        #with:
-          #languages: java, kotlin  # Detecta automáticamente todos los lenguajes en el repositorio
+        with:
+          languages: java, kotlin  # Detecta automáticamente todos los lenguajes en el repositorio
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
