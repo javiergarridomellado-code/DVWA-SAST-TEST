@@ -18,7 +18,5 @@ Supported:
 - Dependencies (NVD Database)
 CodeQL supports the following languages:
 
-
-
 Docu (https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql)
 Library https://github.com/github/codeql-action/
