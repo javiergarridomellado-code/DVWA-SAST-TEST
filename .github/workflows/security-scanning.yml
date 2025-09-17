@@ -9,31 +9,25 @@ on:
     - cron: '0 2 * * 0' # cada domingo a las 2 AM
 
 jobs:
-  codeql:
-    name: CodeQL Analysis
+  analyze:
+    name: Analyze repository with CodeQL
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'java', 'javascript' ]
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Necesario para análisis completo de historial
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
+          languages: "auto"  # Detecta automáticamente todos los lenguajes en el repositorio
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      - name: Perform CodeQL Analysis
+      - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
   dependency-review:
