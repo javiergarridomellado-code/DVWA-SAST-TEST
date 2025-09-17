@@ -80,13 +80,13 @@ jobs:
           echo "Languages to analyze: ${{ needs.detect-languages.outputs.languages }}"
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ needs.detect-languages.outputs.languages }}
           queries: security-extended
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
         with:
           output: sarif-results
 
@@ -136,7 +136,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Dependency Scan Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: dependency-check-results.sarif
 
