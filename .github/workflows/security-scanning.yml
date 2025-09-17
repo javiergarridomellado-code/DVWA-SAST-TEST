@@ -1,160 +1,74 @@
-name: 🔒 Smart Security Scanning
+name: Security Scans
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 0' # cada domingo a las 2 AM
 
 jobs:
-  detect-languages:
-    name: Detect Languages
-    runs-on: ubuntu-latest
-    outputs:
-      languages: ${{ steps.detect.outputs.languages }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Detect available languages
-        id: detect
-        run: |
-          # Detectar lenguajes basado en archivos reales
-          LANGUAGES=""
-          
-          # Verificar Python (solo si hay archivos .py, no solo requirements.txt)
-          if [ $(find . -name "*.py" -not -path "*/.*" | wc -l) -gt 0 ]; then
-            echo "✅ Python code detected"
-            LANGUAGES="$LANGUAGES,python"
-          else
-            echo "⏩ Skipping Python - no .py files found"
-          fi
-          
-          # Verificar Java
-          if [ $(find . -name "*.java" -not -path "*/.*" | wc -l) -gt 0 ]; then
-            echo "✅ Java code detected"
-            LANGUAGES="$LANGUAGES,java"
-          fi
-          
-          # Verificar JavaScript/TypeScript
-          if [ $(find . -name "*.js" -o -name "*.ts" -not -path "*/.*" -not -path "*/node_modules/*" | wc -l) -gt 0 ]; then
-            echo "✅ JavaScript/TypeScript code detected"
-            LANGUAGES="$LANGUAGES,javascript"
-          fi
-          
-          # Verificar Go
-          if [ $(find . -name "*.go" -not -path "*/.*" | wc -l) -gt 0 ]; then
-            echo "✅ Go code detected"
-            LANGUAGES="$LANGUAGES,go"
-          fi
-          
-          # Eliminar la coma inicial si existe
-          LANGUAGES=$(echo $LANGUAGES | sed 's/^,//')
-          
-          if [ -z "$LANGUAGES" ]; then
-            echo "⚠️ No source code detected for supported languages"
-            LANGUAGES="none"
-          fi
-          
-          echo "Detected languages: $LANGUAGES"
-          echo "languages=$LANGUAGES" >> $GITHUB_OUTPUT
-
-  codeql-analysis:
+  codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
-    needs: detect-languages
-    if: needs.detect-languages.outputs.languages != 'none'
     permissions:
       security-events: write
       actions: read
       contents: read
-
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'java', 'javascript' ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Debug detected languages
-        run: |
-          echo "Languages to analyze: ${{ needs.detect-languages.outputs.languages }}"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ needs.detect-languages.outputs.languages }}
-          queries: security-extended
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-        with:
-          output: sarif-results
 
-  # Los demás jobs con dependencia condicional
-  iac-scanning:
-    name: IaC Scanning
+  dependency-review:
+    name: Dependency Review
     runs-on: ubuntu-latest
-    needs: [detect-languages, codeql-analysis]
-    if: always()
-
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
 
-      - name: Run TfSec for Terraform
-        uses: aquasecurity/tfsec-action@v0.1.0
-        with:
-          sarif_upload: true
-        continue-on-error: true
-
-      - name: Run Checkov for multi-cloud IaC
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: .
-          output_format: sarif
-          output_file: checkov-results.sarif
-          soft_fail: true
-        continue-on-error: true
-
-  dependency-scanning:
-    name: Dependency Scanning
+  trivy:
+    name: IaC and Dependency Scan (Trivy)
     runs-on: ubuntu-latest
-    needs: [detect-languages, codeql-analysis]
-    if: always()
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Run OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
         with:
-          project: 'my-project'
-          path: '.'
-          format: 'SARIF'
-          out: 'dependency-check-results.sarif'
-        continue-on-error: true
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
 
-      - name: Upload Dependency Scan Results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: dependency-check-results.sarif
-
-  security-report:
-    name: 📊 Security Scan Summary
+  secrets:
+    name: Secrets Scan
     runs-on: ubuntu-latest
-    needs: [detect-languages, codeql-analysis, iac-scanning, dependency-scanning]
-    if: always()
-
     steps:
-      - name: Generate Security Summary
-        run: |
-          echo "🚀 Análisis de seguridad completado"
-          echo "--------------------------------"
-          echo "📋 Lenguajes detectados: ${{ needs.detect-languages.outputs.languages || 'Ninguno' }}"
-          echo "✅ Code Scanning - ${{ needs.codeql-analysis.result || 'Skipped' }}"
-          echo "✅ IaC Scanning - Completado" 
-          echo "✅ Dependency Scanning - Completado"
-          echo "✅ Secret Scanning - Activado (automático)"
-          echo ""
-          echo "Revisa la pestaña Security para resultados detallados"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config: ""
+          args: "--verbose"
